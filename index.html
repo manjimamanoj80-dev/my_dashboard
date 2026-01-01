@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Autonomous Car Web Dashboard</title>
+<style>
+body{font-family: Arial; background:#f2f2f2;}
+.container{width:90%; margin:auto;}
+.bar{background:#fff; padding:15px; margin-top:20px; border-radius:10px; box-shadow:0 0 5px gray;}
+button{padding:10px 15px; margin:5px; font-size:16px;}
+.status{font-size:18px; color:green;}
+#map{width:100%; height:200px; background:#e0e0e0; position:relative; margin-top:10px; border:2px solid #333;}
+.dot{width:20px; height:20px; border-radius:50%; position:absolute;}
+.start{background:green;}
+.dest{background:red;}
+.path{background:yellow; border-radius:0; height:5px; position:absolute; top:15px;}
+.vehicle{background:orange;}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>🚗 Autonomous Car Web Dashboard</h1>
+
+<!-- BAR 1: predefined  locations -->
+<div class="bar">
+<h2>Bar 1 : predefined locations</h2>
+<button onclick="setStart()">Start</button>
+<br><br>
+<button onclick="predefinedCommand('Go Straight')">Go Straight</button>
+<button onclick="predefinedCommand('Turn Right')">Turn Right</button>
+<button onclick="predefinedCommand('Turn Left')">Turn Left</button>
+<button onclick="predefinedCommand('Stop')">Stop</button>
+</div>
+
+<!-- BAR 2: Manual Map Navigation -->
+<div class="bar">
+<h2>Bar 2 : Manual Map Navigation</h2>
+<p>Click once to set <b>Start (Green)</b> and then <b>Destination (Red)</b>. Vehicle will move automatically along the path.</p>
+<div id="map" onclick="mapClick(event)"></div>
+</div>
+
+<!-- BAR 3: Vehicle Status -->
+<div class="bar">
+<h2>Bar 3 : Vehicle Status</h2>
+<div class="status" id="vehicleStatus">Waiting for input</div>
+</div>
+
+<script>
+/* ---------- BAR 1: Start + Movements ---------- */
+let vehicleElem = null;
+let vehiclePos = {x:50,y:100}; // default start position
+let startSet1 = false;
+
+function setStart(){
+    let mapDiv = document.getElementById("map");
+    mapDiv.innerHTML = ""; // clear previous
+    vehicleElem = null;
+    startSet1 = true;
+
+    // Add start dot
+    let startDot = document.createElement("div");
+    startDot.className = "dot start";
+    startDot.style.left = vehiclePos.x + "px";
+    startDot.style.top = vehiclePos.y + "px";
+    mapDiv.appendChild(startDot);
+
+    document.getElementById("vehicleStatus").innerHTML = "Start set - Ready for movement";
+}
+
+function predefinedCommand(cmd){
+    if(!startSet1){
+        alert("Click Start first!");
+        return;
+    }
+    let mapDiv = document.getElementById("map");
+    if(!vehicleElem){
+        vehicleElem = document.createElement("div");
+        vehicleElem.className = "dot vehicle";
+        vehicleElem.style.left = vehiclePos.x + "px";
+        vehicleElem.style.top = vehiclePos.y + "px";
+        mapDiv.appendChild(vehicleElem);
+    }
+
+    document.getElementById("vehicleStatus").innerHTML = "Vehicle ON - Executing: " + cmd;
+
+    let moveX=0, moveY=0, distance=100;
+    if(cmd==="Go Straight") moveX=distance;
+    if(cmd==="Turn Right") moveY=distance;
+    if(cmd==="Turn Left") moveY=-distance;
+    if(cmd==="Stop"){
+        // Remove vehicle
+        vehicleElem.remove();
+        vehicleElem=null;
+
+        // Add red dot at current position
+        let destDot = document.createElement("div");
+        destDot.className = "dot dest";
+        destDot.style.left = vehiclePos.x + "px";
+        destDot.style.top = vehiclePos.y + "px";
+        mapDiv.appendChild(destDot);
+
+        document.getElementById("vehicleStatus").innerHTML="Vehicle STOPPED at destination (Red)";
+        startSet1=false;
+        return;
+    }
+
+    let steps=50,i=0;
+    let interval=setInterval(()=>{
+        vehiclePos.x += moveX/steps;
+        vehiclePos.y += moveY/steps;
+        vehicleElem.style.left=vehiclePos.x + "px";
+        vehicleElem.style.top=vehiclePos.y + "px";
+        i++;
+        let percent=Math.floor((i/steps)*100);
+        document.getElementById("vehicleStatus").innerHTML=`Vehicle ON - Moving (${percent}%)`;
+        if(i>=steps){
+            clearInterval(interval);
+            document.getElementById("vehicleStatus").innerHTML="Vehicle Ready for next command";
+        }
+    },100);
+}
+
+/* ---------- BAR 2: Manual Map ---------- */
+let startSet2=false,destSet=false;
+let startPos={},destPos={},pathLine=null;
+
+function mapClick(e){
+    let mapDiv = document.getElementById("map");
+    let rect=mapDiv.getBoundingClientRect();
+    let x=e.clientX - rect.left - 10;
+    let y=e.clientY - rect.top - 10;
+
+    if(!startSet2){
+        let startDot=document.createElement("div");
+        startDot.className="dot start";
+        startDot.style.left=x + "px";
+        startDot.style.top=y + "px";
+        mapDiv.appendChild(startDot);
+        startSet2=true;
+        startPos={x:x,y:y};
+        document.getElementById("vehicleStatus").innerHTML="Start Selected (Green)";
+    }
+    else if(!destSet){
+        let destDot=document.createElement("div");
+        destDot.className="dot dest";
+        destDot.style.left=x + "px";
+        destDot.style.top=y + "px";
+        mapDiv.appendChild(destDot);
+        destSet=true;
+        destPos={x:x,y:y};
+
+        pathLine=document.createElement("div");
+        pathLine.className="path";
+        let width=Math.abs(destPos.x - startPos.x);
+        pathLine.style.left=Math.min(startPos.x,destPos.x) + 10 + "px";
+        pathLine.style.top=startPos.y + 10 + "px";
+        pathLine.style.width=width + "px";
+        mapDiv.appendChild(pathLine);
+
+        document.getElementById("vehicleStatus").innerHTML="Destination Selected (Red) - Vehicle Starting...";
+        moveVehicle();
+    }
+}
+
+function moveVehicle(){
+    let mapDiv=document.getElementById("map");
+    let vehicle=document.createElement("div");
+    vehicle.className="dot vehicle";
+    vehicle.style.left=startPos.x + "px";
+    vehicle.style.top=startPos.y + "px";
+    mapDiv.appendChild(vehicle);
+
+    let steps=50,i=0;
+    let interval=setInterval(()=>{
+        let newX=startPos.x + ((destPos.x-startPos.x)/steps)*i;
+        let newY=startPos.y + ((destPos.y-startPos.y)/steps)*i;
+        vehicle.style.left=newX + "px";
+        vehicle.style.top=newY + "px";
+
+        let percent=Math.floor((i/steps)*100);
+        document.getElementById("vehicleStatus").innerHTML=`Vehicle ON - Moving (${percent}%)`;
+
+        i++;
+        if(i>steps){
+            clearInterval(interval);
+            document.getElementById("vehicleStatus").innerHTML="Destination Reached / Vehicle OFF";
+            startSet2=false; destSet=false;
+            mapDiv.innerHTML="";
+        }
+    },100);
+}
+</script>
+
+</body>
+</html>
