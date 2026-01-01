@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Autonomous Car Web Dashboard</title>
+<title>Automatic Car Web Dashboard</title>
 <style>
 body{font-family: Arial; background:#f2f2f2;}
 .container{width:90%; margin:auto;}
@@ -19,13 +19,24 @@ button{padding:10px 15px; margin:5px; font-size:16px;}
 <body>
 
 <div class="container">
-<h1>🚗 Autonomous Car Web Dashboard</h1>
+<h1>🚗 Automatic Car Web Dashboard</h1>
 
-<!-- BAR 1: predefined  locations -->
+<!-- BAR 1: Start + Predefined Locations + Movements -->
 <div class="bar">
-<h2>Bar 1 : predefined locations</h2>
+<h2>Bar 1 : Start & Predefined Locations</h2>
 <button onclick="setStart()">Start</button>
 <br><br>
+
+<label for="locations">Select Location:</label>
+<select id="locations">
+  <option value="">--Select--</option>
+  <option value="kitchen">Kitchen</option>
+  <option value="office">Office</option>
+</select>
+<button onclick="goToLocation()">Go</button>
+<br><br>
+
+<!-- Manual movements -->
 <button onclick="predefinedCommand('Go Straight')">Go Straight</button>
 <button onclick="predefinedCommand('Turn Right')">Turn Right</button>
 <button onclick="predefinedCommand('Turn Left')">Turn Left</button>
@@ -46,7 +57,7 @@ button{padding:10px 15px; margin:5px; font-size:16px;}
 </div>
 
 <script>
-/* ---------- BAR 1: Start + Movements ---------- */
+/* ---------- BAR 1: Start + Movements + Predefined Locations ---------- */
 let vehicleElem = null;
 let vehiclePos = {x:50,y:100}; // default start position
 let startSet1 = false;
@@ -67,6 +78,7 @@ function setStart(){
     document.getElementById("vehicleStatus").innerHTML = "Start set - Ready for movement";
 }
 
+// Manual movement commands
 function predefinedCommand(cmd){
     if(!startSet1){
         alert("Click Start first!");
@@ -88,18 +100,9 @@ function predefinedCommand(cmd){
     if(cmd==="Turn Right") moveY=distance;
     if(cmd==="Turn Left") moveY=-distance;
     if(cmd==="Stop"){
-        // Remove vehicle
+        document.getElementById("vehicleStatus").innerHTML="Vehicle OFF (STOP)";
         vehicleElem.remove();
         vehicleElem=null;
-
-        // Add red dot at current position
-        let destDot = document.createElement("div");
-        destDot.className = "dot dest";
-        destDot.style.left = vehiclePos.x + "px";
-        destDot.style.top = vehiclePos.y + "px";
-        mapDiv.appendChild(destDot);
-
-        document.getElementById("vehicleStatus").innerHTML="Vehicle STOPPED at destination (Red)";
         startSet1=false;
         return;
     }
@@ -120,7 +123,43 @@ function predefinedCommand(cmd){
     },100);
 }
 
-/* ---------- BAR 2: Manual Map ---------- */
+// Predefined locations sequences
+function goToLocation(){
+    if(!startSet1){
+        alert("Click Start first!");
+        return;
+    }
+    let loc = document.getElementById("locations").value;
+    if(!loc){
+        alert("Select a location first!");
+        return;
+    }
+
+    let commands = [];
+    if(loc === "kitchen"){
+        commands = ["Go Straight", "Turn Left", "Go Straight", "Stop"];
+    } else if(loc === "office"){
+        commands = ["Go Straight", "Turn Right", "Go Straight", "Stop"];
+    }
+
+    executeCommands(commands);
+}
+
+function executeCommands(cmdArray){
+    if(cmdArray.length === 0) return;
+    let cmd = cmdArray.shift();
+    predefinedCommand(cmd);
+
+    let check = setInterval(()=>{
+        let status = document.getElementById("vehicleStatus").innerHTML;
+        if(status.includes("Ready for next command") || status.includes("Vehicle OFF")){
+            clearInterval(check);
+            executeCommands(cmdArray);
+        }
+    }, 200);
+}
+
+/* ---------- BAR 2: Manual Map Navigation ---------- */
 let startSet2=false,destSet=false;
 let startPos={},destPos={},pathLine=null;
 
